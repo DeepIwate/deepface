@@ -8,7 +8,7 @@
 + cascade_path (haarcascade_frontalface_alt.xmlの場所)
 
 ### 2. Demo
-![Demo](https://github.com/baibai25/deepface/blob/master/face%20crop/Peek%202017-09-22%2014-50.gif)
+![Demo](https://github.com/DeepIwate/deepface/blob/master/face%20crop/Peek%202017-09-22%2014-50.gif)
 
 画像に複数人写っている場合、正しくcropされない場合があります。その時は、detectMultiScaleの部分のパラメータを調整して下さい。http://docs.opencv.org/2.4/modules/objdetect/doc/cascade_classification.html
 
