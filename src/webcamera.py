@@ -1,50 +1,44 @@
 import os
 import sys
-import cv2
+from glob import glob
 from datetime import datetime
-out_path = "/tmp/"
+import random
+import time
 
+import cv2
 
-class FaceExtractor:
-    def __init__(self):
-        XML_PATH = os.path.join(os.getcwd(), "haarcascade_frontalface_default.xml")
+from face_detection import FaceExtractor
 
-        if not os.path.exists(XML_PATH):
-            print("Missing haarcascade_frontalface_default.xml")
-            sys.exit(-1)
-        self.cascade = cv2.CascadeClassifier(XML_PATH)
+CAPTURE_FOLDER = "../data/capture"
+DATA_FOLDER = "../data/lfw/"
 
-    def extractFace(self, frame):
-        color = (255, 255, 255)
-        # face recognition (detect face)
-        facerect = self.cascade.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=2, minSize=(10, 10))
+# Fake web camera: provides random images peridiocally from a folder
+# Useful in cases when there is no web camera
+class FolderWebCamera:
+    def __init__(self, folderPath, delay=0.5):
+        self.folderPath = folderPath
+        self.files = files = glob(os.path.join(folderPath, "*/*.jpg"))
+        self.delay = delay
+        self.lastTime = 0
 
-        if len(facerect) > 0:
-            for rect in facerect:
-                # draw rectangle
-                cv2.rectangle(frame, tuple(rect[0:2]), tuple(rect[0:2] + rect[2:4]), color, thickness=2)
-        # Display the resulting frame
-        cv2.imshow('frame', frame)
+    def read(self):
+        now = time.time()
+        if now - self.lastTime > self.delay:
+            imgFile = random.choice(self.files)
+            self.img = cv2.imread(imgFile, 0)
+            self.lastTime = now
+        return True, self.img.copy()
 
-    def saveFace(self, frame):
-        facerect = self.cascade.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=2, minSize=(10, 10))
-
-        if len(facerect) > 0:
-            dst = None
-            for rect in facerect:
-                dst = frame[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
-
-            if dst is not None:
-                # resize all images to 128x128 size
-                return cv2.resize(dst, (128, 128))
+    def release(self):
+        pass
 
 if __name__ == "__main__":
     fe = FaceExtractor()
     cap = cv2.VideoCapture(0)
 
-    if cap == None:
-        print("Camera not found")
-        sys.exit(-1)
+    if cap == None or not cap.isOpened():
+        print("No camera found. Using folder {} instead".format(DATA_FOLDER))
+        cap = FolderWebCamera(DATA_FOLDER)
 
     while(True):
         ret, frame = cap.read()
@@ -53,16 +47,26 @@ if __name__ == "__main__":
             print("Capture Failed")
             break
 
-        fe.extractFace(frame)
+        #fe.extractFace(frame)
+        rect = fe.detectFace(frame)
+
+        if rect is not None:
+            color = (255, 255, 255)
+            cv2.rectangle(frame, tuple(rect[0:2]), tuple(rect[0:2] + rect[2:4]), color, thickness=2)
+
+        # Display the resulting frame
+        cv2.imshow('frame', frame)
 
         # key function : q(quiet), s(save)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
-        elif key == ord('s'):
-            img = fe.saveFace(frame)
-            time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            cv2.imwrite(out_path + time + '.jpg', img)
+        elif key == ord('s') and rect is not None:
+            img = fe.extractFace(frame) # fe.saveFace(frame)
+            timeStr = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            if not os.path.exists(CAPTURE_FOLDER):
+                os.makedirs(CAPTURE_FOLDER)
+            cv2.imwrite(os.path.join(CAPTURE_FOLDER, timeStr + '.jpg'), img)
 
     # When everything done, release the capture
     cap.release()

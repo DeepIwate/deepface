@@ -14,12 +14,21 @@ class FaceExtractor:
             sys.exit(-1)
         self.cascade = cv2.CascadeClassifier(XML_PATH)
 
-    def extractFace(self, img):
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        facerect = self.cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5,minSize=(10, 10))
+    def detectFace(self, img):
+        # face recognition (detect face)
+        facerect = self.cascade.detectMultiScale(img, scaleFactor=1.2, minNeighbors=2, minSize=(10, 10))
+        #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        #facerect = self.cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5,minSize=(10, 10))
         dst = None
-        for rect in facerect:
-            dst = img[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
+        if len(facerect) > 0:
+            return facerect[0]
+
+    def extractFace(self, img):
+        rect = self.detectFace(img)
+        if rect is None:
+            return
+
+        dst = img[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
         if dst is not None:
             # resize all images to 128x128 size
             return cv2.resize(dst, (128, 128))
