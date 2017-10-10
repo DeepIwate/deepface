@@ -10,6 +10,7 @@ import cv2
 
 from face_detection import FaceExtractor
 from gan_wrapper import GANWrapper
+from paint import CVMouseEvent
 
 CAPTURE_FOLDER = "../data/capture"
 DATA_FOLDER = "../data/lfw/"
@@ -51,8 +52,25 @@ if __name__ == "__main__":
         print("No camera found. Using folder {} instead".format(DATA_FOLDER))
         cap = FolderWebCamera(DATA_FOLDER)
 
+    inputWindowName = "Web Camera"
+    cv2.namedWindow(inputWindowName)
+
+    frame = None
+    colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0),(0,0,0),(255,255,255)]
+    color = colors[-2]
+    def brushPaint(x, y):
+        cv2.circle(frame, (x, y), 3, color, -1)
+    # CVMouseEventクラスによるドラッグ描画関数の登録
+    mouse_event = CVMouseEvent(drag_func=brushPaint)
+    mouse_event.setCallBack(inputWindowName)
+
+    skipCapture = False
     while(True):
-        ret, frame = cap.read()
+        if not skipCapture:
+            ret, frame = cap.read()
+            orig = frame.copy()
+        else:
+            frame = orig
 
         if ret == False:
             print("Capture Failed")
@@ -61,17 +79,17 @@ if __name__ == "__main__":
         #fe.extractFace(frame)
         rect = fe.detectFace(frame)
 
-        if rect is not None:
-            color = (255, 255, 255)
-            cv2.rectangle(frame, tuple(rect[0:2]), tuple(rect[0:2] + rect[2:4]), color, thickness=2)
+        if rect is not None and not skipCapture:
+            rectColor = (255, 255, 255)
+            cv2.rectangle(frame, tuple(rect[0:2]), tuple(rect[0:2] + rect[2:4]), rectColor, thickness=2)
 
         # Display the resulting frame
-        cv2.imshow('Web Camera', frame)
-        img = fe.extractFace(frame)
-        if img is not None:
-            cv2.imshow('Extracted', img)
+        cv2.imshow(inputWindowName, frame)
+        extracted = fe.extractFace(frame)
+        if extracted is not None:
+            cv2.imshow('Extracted', extracted)
             if ganWrapper:
-                autoencoded = ganWrapper.autoencode(img)
+                autoencoded = ganWrapper.autoencode(extracted)
                 # for some reason we cannot display autoencoded properly
                 # (wrong format?)
                 # so first we save it to disk and then read it again
@@ -83,6 +101,8 @@ if __name__ == "__main__":
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
+        elif key == ord('p'):
+            skipCapture = not skipCapture
         elif key == ord('s') and rect is not None:
             img = fe.extractFace(frame) # fe.saveFace(frame)
             timeStr = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

@@ -5,8 +5,6 @@
 
 import cv2
 import numpy as np
-import tkinter
-import tkinter.filedialog
 
 # OpenCVのイベントリストの出力
 def printEvents():
@@ -52,8 +50,7 @@ def emptyImage():
     return np.zeros((512, 512, 3), np.uint8)
 
 # シンプルなマウス描画のデモ
-def simplePaint(filename):
-    defaultFace = cv2.imread(filename, cv2.IMREAD_COLOR)
+def simplePaint(defaultFace):
     img = defaultFace
 
     colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0),(0,0,0),(255,255,255)]
@@ -98,6 +95,9 @@ def simplePaint(filename):
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
+    import tkinter
+    import tkinter.filedialog
+
     #編集したいファイルを選ぶ。jpg限定
     tk = tkinter.Tk()
     tk.withdraw()
@@ -105,7 +105,8 @@ if __name__ == '__main__':
     filename= tkinter.filedialog.askopenfilename(**args)
     #編集する qで終了
     printEvents()
-    simplePaint(filename)
+    defaultFace = cv2.imread(filename, cv2.IMREAD_COLOR)
+    simplePaint(defaultFace)
 
 
 # In[ ]:
@@ -113,4 +114,3 @@ if __name__ == '__main__':
 #プロトタイプ　9/20
 #編集したいファイルを選択できるように変更(jpg only) 9/27
 #太さを変更できるようにする予定
-
