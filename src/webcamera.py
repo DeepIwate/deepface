@@ -7,6 +7,7 @@ import time
 import traceback
 
 import cv2
+import numpy as np
 
 from face_detection import FaceExtractor
 from gan_wrapper import GANWrapper
@@ -36,85 +37,153 @@ class FolderWebCamera:
     def release(self):
         pass
 
-if __name__ == "__main__":
-    fe = FaceExtractor()
-    cap = cv2.VideoCapture(0)
+class WebCamera:
+    def __init__(self):
+        self.fe = FaceExtractor()
+        self.cap = cv2.VideoCapture(0)
 
-    ganWrapper = None
-    if USE_GAN:
-        try:
-            ganWrapper = GANWrapper()
-        except:
-            traceback.print_exc()
-            print("Failed to load GAN. Will not display autoencoded preview.")
+        self.ganWrapper = None
+        if USE_GAN:
+            try:
+                self.ganWrapper = GANWrapper()
+            except:
+                traceback.print_exc()
+                print("Failed to load GAN. Will not display autoencoded preview.")
 
-    if cap == None or not cap.isOpened():
-        print("No camera found. Using folder {} instead".format(DATA_FOLDER))
-        cap = FolderWebCamera(DATA_FOLDER)
+        if self.cap == None or not self.cap.isOpened():
+            print("No camera found. Using folder {} instead".format(DATA_FOLDER))
+            self.cap = FolderWebCamera(DATA_FOLDER)
 
-    inputWindowName = "Web Camera"
-    cv2.namedWindow(inputWindowName)
+        self.inputWindowName = "Web Camera"
+        cv2.namedWindow(self.inputWindowName)
 
-    frame = None
-    colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0),(0,0,0),(255,255,255)]
-    color = colors[-2]
-    def brushPaint(x, y):
-        cv2.circle(frame, (x, y), 3, color, -1)
-    # CVMouseEventクラスによるドラッグ描画関数の登録
-    mouse_event = CVMouseEvent(drag_func=brushPaint)
-    mouse_event.setCallBack(inputWindowName)
+        # Original input
+        self.captureFrame = None
+        # Annotated input (input with annotated face capture rectangle)
+        self.annotatedFrame = None
+        # Edited input (entire image)
+        self.editFrame = None
+        # Rectangle of detected face (original input)
+        self.extractRect = None
 
-    skipCapture = False
-    while(True):
-        if not skipCapture:
-            ret, frame = cap.read()
-            orig = frame.copy()
-        else:
-            frame = orig
+        self.paintColors = [(0, 0, 255), (0, 255, 0), (255, 0, 0),(0,0,0),(255,255,255)]
+        self.paintColor = self.paintColors[-2]
+        def brushPaint(x, y):
+            if self.editMode:
+                cv2.circle(self.editFrame, (x, y), 3, self.paintColor, -1)
+        # CVMouseEventクラスによるドラッグ描画関数の登録
+        mouse_event = CVMouseEvent(drag_func=brushPaint)
+        mouse_event.setCallBack(self.inputWindowName)
 
+        self.editMode = False
+        self.exit = False
+
+    def processNotEdit(self):
+        ret, self.captureFrame = self.cap.read()
+        self.annotatedFrame = self.captureFrame.copy()
         if ret == False:
-            print("Capture Failed")
-            break
+            raise "Capture Failed"
 
-        #fe.extractFace(frame)
-        rect = fe.detectFace(frame)
+        self.extractRect = self.fe.detectFace(self.captureFrame)
 
-        if rect is not None and not skipCapture:
+        if self.extractRect is not None:
             rectColor = (255, 255, 255)
-            cv2.rectangle(frame, tuple(rect[0:2]), tuple(rect[0:2] + rect[2:4]), rectColor, thickness=2)
+            cv2.rectangle(self.annotatedFrame,
+                tuple(self.extractRect[0:2]),
+                tuple(self.extractRect[0:2] + self.extractRect[2:4]),
+                rectColor,
+                thickness=2)
 
-        # Display the resulting frame
-        cv2.imshow(inputWindowName, frame)
-        extracted = fe.extractFace(frame)
-        if extracted is not None:
-            cv2.imshow('Extracted', extracted)
-            if not os.path.exists("tempdir"):
-                os.makedirs("tempdir")
-            cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
-            if ganWrapper:
-                #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
-                autoencoded = ganWrapper.autoencode(extracted)
+    def run(self):
+        while True:
+            if not self.editMode:
+                self.processNotEdit()
 
-                # for some reason we cannot display autoencoded properly
-                # (wrong format?)
-                # so first we save it to disk and then read it again
-                cv2.imwrite("_temp.png", autoencoded)
-                autoencoded = cv2.imread("_temp.png")
-                cv2.imshow('Autoencoded', autoencoded)
+            # Display the resulting frame
+            if self.editMode:
+                cv2.imshow(self.inputWindowName, self.editFrame)
+            else:
+                cv2.imshow(self.inputWindowName, self.annotatedFrame)
 
+            if self.extractRect is not None:
+                if self.editMode:
+                    extracted = self.fe.extractFaceFromRect(self.editFrame,
+                                                            self.extractRect)
+                else:
+                    extracted = self.fe.extractFaceFromRect(self.captureFrame,
+                                                            self.extractRect)
+                    self.extractedFrame = self.fe.extractFaceFromRect(self.captureFrame,
+                                                                      self.extractRect,
+                                                                      resize=False)
+
+                cv2.imshow('Extracted', extracted)
+                if not os.path.exists("tempdir"):
+                    os.makedirs("tempdir")
+                cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
+                if self.ganWrapper:
+                    #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
+                    output = self.pipeline(extracted)
+                    cv2.imshow('Output', output)
+
+            self.processKeys()
+            if self.exit:
+                break
+
+        # When everything done, release the capture
+        self.cap.release()
+        cv2.destroyAllWindows()
+
+    def pipeline(self, img):
+        self.modifiedCaptureFrame = self.captureFrame.copy()
+        r = self.extractRect
+        origShape = self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]].shape
+
+        result = self.ganWrapper.autoencode(img)
+        result = cv2.resize(result, (origShape[0], origShape[1]), interpolation = cv2.INTER_CUBIC)
+        result = np.asarray(result).astype('uint8')
+
+        if not self.editMode:
+            self.originalOutput = result
+            # difference between autoencoder output and original face
+            self.diffOrig = self.extractedFrame - self.originalOutput
+            cv2.imshow("DiffOrig", self.diffOrig)
+            cv2.imshow("DiffOrig+Old", self.diffOrig + self.originalOutput)
+
+        newSubFrame = result
+        # TODO: improve diff function to produce fewer artefacts
+        # START
+
+        newSubFrame = newSubFrame + self.diffOrig
+        newSubFrame = np.clip(newSubFrame, 0, 255)
+
+        # with detail (includes detail from input):
+        self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = newSubFrame
+        # without detail (autoencoder output):
+        # self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = result
+        # END
+
+        #print(result)
+        #print(res2)
+
+        return self.modifiedCaptureFrame
+
+    def processKeys(self):
         # key function : q(quiet), s(save)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
-            break
+            self.exit = True
         elif key == ord('p'):
-            skipCapture = not skipCapture
-        elif key == ord('s') and rect is not None:
-            img = fe.extractFace(frame) # fe.saveFace(frame)
+            self.editMode = not self.editMode
+            if self.editMode:
+                self.editFrame = self.captureFrame.copy()
+        elif key == ord('s') and self.extractRect is not None:
+            img = self.fe.extractFace(self.captureFrame) # self.fe.saveFace(frame)
             timeStr = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
             if not os.path.exists(CAPTURE_FOLDER):
                 os.makedirs(CAPTURE_FOLDER)
             cv2.imwrite(os.path.join(CAPTURE_FOLDER, timeStr + '.jpg'), img)
 
-    # When everything done, release the capture
-    cap.release()
-    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    wc = WebCamera()
+    wc.run()

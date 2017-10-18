@@ -17,7 +17,7 @@ class GANWrapper:
         prepare_dirs_and_logger(config)
 
         config.data_path = "../data/capture"
-        config.model_dir = "began/logs/faces_model"
+        config.model_dir = "began/logs/celebA"
         config.is_train = False
         data_path = config.data_path
         config.batch_size = 1
@@ -34,8 +34,8 @@ class GANWrapper:
             img = cv2.resize(img, (64, 64), interpolation = cv2.INTER_CUBIC)
             img = np.asarray(img).astype('float')
             img = np.expand_dims(img, axis=0)
-            img = img/255.0
-            print(img)
+            #img = img/255.0
+            #print(img)
             #img = np.transpose(img, [0, 3, 1, 2])
             #img = tf.expand_dims(img, -1)
             #img = tf.image.resize_nearest_neighbor(img, [64, 64])
@@ -70,9 +70,10 @@ class GANWrapper:
             #plt.show()
 
         result = self.trainer.autoencode(img)
+        result = result[0][0]
         #plt.imshow(result[0][0])
         #plt.show()
-        return result[0][0]
+        return result
 
     def get_image_from_loader(self, data_loader):
         x = data_loader.eval(session=self.trainer.sess)

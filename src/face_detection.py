@@ -25,13 +25,19 @@ class FaceExtractor:
 
     def extractFace(self, img):
         rect = self.detectFace(img)
+        return self.extractFaceFromRect(img, rect)
+
+    def extractFaceFromRect(self, img, rect, resize=True):
         if rect is None:
             return
 
         dst = img[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
         if dst is not None:
-            # resize all images to 128x128 size
-            return cv2.resize(dst, (128, 128))
+            if resize:
+                # resize all images to 128x128 size
+                return cv2.resize(dst, (128, 128))
+            else:
+                return dst
 
     def extractAllFaces(self):
         # Data folders
