@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import matplotlib.pyplot as plt
+
 import os
 try:
     from StringIO import StringIO
@@ -252,6 +254,8 @@ class Trainer(object):
         return x
 
     def autoencode(self, inputs, path='', idx=None, x_fake=None):
+        # plt.imshow(inputs[0])
+        # plt.show()
         items = {
             'real': inputs,
             'fake': x_fake,
@@ -263,11 +267,10 @@ class Trainer(object):
             if img.shape[3] in [1, 3]:
                 img = img.transpose([0, 3, 1, 2])
 
-            #x_path = os.path.join(path, '{}_D_{}.png'.format(idx, key))
             x = self.sess.run(self.AE_x, {self.x: img})
+            #plt.imshow(x[0])
+            #plt.show()
             result.append(x)
-            #save_image(x, x_path)
-            #print("[*] Samples saved: {}".format(x_path))
         return result
 
     def encode(self, inputs):
@@ -331,10 +334,16 @@ class Trainer(object):
             save_image(real1_batch, os.path.join(root_path, 'test{}_real1.png'.format(step)))
             save_image(real2_batch, os.path.join(root_path, 'test{}_real2.png'.format(step)))
 
-            self.autoencode(
+            results1 = self.autoencode(
                     real1_batch, self.model_dir, idx=os.path.join(root_path, "test{}_real1".format(step)))
-            self.autoencode(
+            results2 = self.autoencode(
                     real2_batch, self.model_dir, idx=os.path.join(root_path, "test{}_real2".format(step)))
+
+            for results, i in [(results1, 1), (results2, 2)]:
+                idx = os.path.join(root_path, "test{}_real{}".format(step, i))
+                x_path = os.path.join(self.model_dir, '{}_D_real.png'.format(idx))
+                save_image(results[0], x_path)
+                print("[*] Samples saved: {}".format(x_path))
 
             self.interpolate_G(real1_batch, step, root_path)
             #self.interpolate_D(real1_batch, real2_batch, step, root_path)

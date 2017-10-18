@@ -8,6 +8,8 @@ def get_loader(root, batch_size, scale_size, data_format, split=None, is_graysca
     if dataset_name in ['CelebA'] and split:
         root = os.path.join(root, 'splits', split)
 
+    print("ROOT:", root, "DATASET_NAME", dataset_name)
+    print("{}/*.{}".format(root, "png"))
     for ext in ["jpg", "png"]:
         paths = glob("{}/*.{}".format(root, ext))
 
@@ -46,7 +48,7 @@ def get_loader(root, batch_size, scale_size, data_format, split=None, is_graysca
     else:
         queue = tf.image.resize_nearest_neighbor(queue, [scale_size, scale_size])
 
-    print(data_format)
+    print("DATA FORMAT: {}".format(data_format))
     if data_format == 'NCHW':
         queue = tf.transpose(queue, [0, 3, 1, 2])
     elif data_format == 'NHWC':

@@ -88,8 +88,13 @@ if __name__ == "__main__":
         extracted = fe.extractFace(frame)
         if extracted is not None:
             cv2.imshow('Extracted', extracted)
+            if not os.path.exists("tempdir"):
+                os.makedirs("tempdir")
+            cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
             if ganWrapper:
+                #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
                 autoencoded = ganWrapper.autoencode(extracted)
+
                 # for some reason we cannot display autoencoded properly
                 # (wrong format?)
                 # so first we save it to disk and then read it again
