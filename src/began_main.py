@@ -17,7 +17,7 @@ def main(config):
         batch_size = config.batch_size
         do_shuffle = True
     else:
-        setattr(config, 'batch_size', 64)
+        setattr(config, 'batch_size', 16)
         if config.test_data_path is None:
             data_path = config.data_path
         else:

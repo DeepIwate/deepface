@@ -264,8 +264,9 @@ class Trainer(object):
         for key, img in items.items():
             if img is None:
                 continue
-            if img.shape[3] in [1, 3]:
-                img = img.transpose([0, 3, 1, 2])
+            #if img.shape[3] in [1, 3]:
+                #change from img=img.transpose[(0,3,1,2)]
+                #img = img.transpose([0, 3, 1, 2])
 
             x = self.sess.run(self.AE_x, {self.x: img})
             #plt.imshow(x[0])
@@ -274,8 +275,8 @@ class Trainer(object):
         return result
 
     def encode(self, inputs):
-        if inputs.shape[3] in [1, 3]:
-            inputs = inputs.transpose([0, 3, 1, 2])
+        #if inputs.shape[3] in [1, 3]:
+            #inputs = inputs.transpose([0, 3, 1, 2])
         return self.sess.run(self.D_z, {self.x: inputs})
 
     def decode(self, z):
