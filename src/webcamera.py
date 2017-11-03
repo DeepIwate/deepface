@@ -16,13 +16,12 @@ from paint import CVMouseEvent
 CAPTURE_FOLDER = "../data/capture"
 DATA_FOLDER = "../data/lfw/"
 USE_GAN = True
-
 # Fake web camera: provides random images peridiocally from a folder
 # Useful in cases when there is no web camera
 class FolderWebCamera:
     def __init__(self, folderPath, delay=0.5):
         self.folderPath = folderPath
-        self.files = files = glob(os.path.join(folderPath, "*/*.jpg"))
+        self.files = files = glob(os.path.join(folderPath, "./*.jpg"))
         self.delay = delay
         self.lastTime = 0
 
@@ -71,6 +70,9 @@ class WebCamera:
         def brushPaint(x, y):
             if self.editMode:
                 cv2.circle(self.editFrame, (x, y), 3, self.paintColor, -1)
+                #You should imshow when you edit something
+                cv2.imshow(self.inputWindowName, self.editFrame)
+                
         # CVMouseEventクラスによるドラッグ描画関数の登録
         mouse_event = CVMouseEvent(drag_func=brushPaint)
         mouse_event.setCallBack(self.inputWindowName)
@@ -116,10 +118,10 @@ class WebCamera:
                                                                       self.extractRect,
                                                                       resize=False)
 
-                cv2.imshow('Extracted', extracted)
-                if not os.path.exists("tempdir"):
-                    os.makedirs("tempdir")
-                cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
+                #cv2.imshow('Extracted', extracted)
+                #if not os.path.exists("tempdir"):
+                    #os.makedirs("tempdir")
+                #cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
                 if self.ganWrapper:
                     #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
                     output = self.pipeline(extracted)
@@ -137,7 +139,6 @@ class WebCamera:
         self.modifiedCaptureFrame = self.captureFrame.copy()
         r = self.extractRect
         origShape = self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]].shape
-
         result = self.ganWrapper.autoencode(img)
         result = cv2.resize(result, (origShape[0], origShape[1]), interpolation = cv2.INTER_CUBIC)
         result = np.asarray(result).astype('uint8')
@@ -146,8 +147,8 @@ class WebCamera:
             self.originalOutput = result
             # difference between autoencoder output and original face
             self.diffOrig = self.extractedFrame - self.originalOutput
-            cv2.imshow("DiffOrig", self.diffOrig)
-            cv2.imshow("DiffOrig+Old", self.diffOrig + self.originalOutput)
+            #cv2.imshow("DiffOrig", self.diffOrig)
+            #cv2.imshow("DiffOrig+Old", self.diffOrig + self.originalOutput)
 
         newSubFrame = result
         # TODO: improve diff function to produce fewer artefacts
@@ -169,13 +170,26 @@ class WebCamera:
 
     def processKeys(self):
         # key function : q(quiet), s(save)
-        key = cv2.waitKey(1) & 0xFF
+        
+        if self.editMode:
+            #when user is editing, waitkey should be large
+            #But output is slow when waitkey is too large
+            #Maybe 500 or 750 is better. I don't know.
+            key = cv2.waitKey(1000) & 0xFF
+        else:
+            #when user is not editing, waitkey should be small
+            key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             self.exit = True
         elif key == ord('p'):
             self.editMode = not self.editMode
             if self.editMode:
                 self.editFrame = self.captureFrame.copy()
+                #When user is editing,release the caputure.
+                self.cap.release()
+            else:
+                #When user finished editing ,restart the capture.
+                self.cap = cv2.VideoCapture(0)
         elif key == ord('s') and self.extractRect is not None:
             img = self.fe.extractFace(self.captureFrame) # self.fe.saveFace(frame)
             timeStr = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

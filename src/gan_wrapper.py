@@ -17,7 +17,7 @@ class GANWrapper:
         prepare_dirs_and_logger(config)
 
         config.data_path = "../data/capture"
-        config.model_dir = "began/logs/celebA"
+        config.model_dir = "logs/celebA_trained_1025_202802"
         config.is_train = False
         data_path = config.data_path
         config.batch_size = 1
