@@ -119,9 +119,9 @@ class WebCamera:
                                                                       resize=False)
 
                 #cv2.imshow('Extracted', extracted)
-                #if not os.path.exists("tempdir"):
-                    #os.makedirs("tempdir")
-                #cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
+                if not os.path.exists("tempdir"):
+                    os.makedirs("tempdir")
+                cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
                 if self.ganWrapper:
                     #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
                     output = self.pipeline(extracted)
