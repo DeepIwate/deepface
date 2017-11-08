@@ -79,6 +79,8 @@ class WebCamera:
 
         self.editMode = False
         self.exit = False
+        
+        self.useHighRes = True
 
     def processNotEdit(self):
         ret, self.captureFrame = self.cap.read()
@@ -119,12 +121,12 @@ class WebCamera:
                                                                       resize=False)
 
                 #cv2.imshow('Extracted', extracted)
-                if not os.path.exists("tempdir"):
-                    os.makedirs("tempdir")
-                cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
+                #if not os.path.exists("tempdir"):
+                    #os.makedirs("tempdir")
+                #cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
                 if self.ganWrapper:
                     #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
-                    output = self.pipeline(extracted)
+                    output=self.pipeline(extracted)
                     cv2.imshow('Output', output)
 
             self.processKeys()
@@ -158,9 +160,11 @@ class WebCamera:
         newSubFrame = np.clip(newSubFrame, 0, 255)
 
         # with detail (includes detail from input):
-        self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = newSubFrame
+        if self.useHighRes:
+            self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = newSubFrame
         # without detail (autoencoder output):
-        # self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = result
+        else:
+            self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = result
         # END
 
         #print(result)
@@ -175,13 +179,13 @@ class WebCamera:
             #when user is editing, waitkey should be large
             #But output is slow when waitkey is too large
             #Maybe 500 or 750 is better. I don't know.
-            key = cv2.waitKey(1000) & 0xFF
+            key = cv2.waitKey(750) & 0xFF
         else:
             #when user is not editing, waitkey should be small
             key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             self.exit = True
-        elif key == ord('p'):
+        elif key == ord('p') or key == 32:
             self.editMode = not self.editMode
             if self.editMode:
                 self.editFrame = self.captureFrame.copy()
@@ -190,6 +194,8 @@ class WebCamera:
             else:
                 #When user finished editing ,restart the capture.
                 self.cap = cv2.VideoCapture(0)
+        elif key == ord('h') or key == 9:
+            self.useHighRes = not self.useHighRes
         elif key == ord('s') and self.extractRect is not None:
             img = self.fe.extractFace(self.captureFrame) # self.fe.saveFace(frame)
             timeStr = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
