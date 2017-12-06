@@ -81,6 +81,8 @@ class WebCamera:
         self.exit = False
         
         self.useHighRes = True
+        #Weight to delete noise
+        self.ganWeight = 0.5
 
     def processNotEdit(self):
         ret, self.captureFrame = self.cap.read()
@@ -120,7 +122,7 @@ class WebCamera:
                                                                       self.extractRect,
                                                                       resize=False)
 
-                #cv2.imshow('Extracted', extracted)
+                cv2.imshow('Extracted', extracted)
                 #if not os.path.exists("tempdir"):
                     #os.makedirs("tempdir")
                 #cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
@@ -148,15 +150,15 @@ class WebCamera:
         if not self.editMode:
             self.originalOutput = result
             # difference between autoencoder output and original face
-            self.diffOrig = self.extractedFrame - self.originalOutput
-            #cv2.imshow("DiffOrig", self.diffOrig)
+            self.diffOrig = self.extractedFrame - self.ganWeight*self.originalOutput
+            cv2.imshow("DiffOrig", self.diffOrig)
             #cv2.imshow("DiffOrig+Old", self.diffOrig + self.originalOutput)
 
         newSubFrame = result
         # TODO: improve diff function to produce fewer artefacts
         # START
-
-        newSubFrame = newSubFrame + self.diffOrig
+        
+        newSubFrame = self.ganWeight*newSubFrame + self.diffOrig
         newSubFrame = np.clip(newSubFrame, 0, 255)
 
         # with detail (includes detail from input):
