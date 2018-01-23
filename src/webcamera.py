@@ -67,29 +67,43 @@ class WebCamera:
 
         self.paintColors = [(0, 0, 255), (0, 255, 0), (255, 0, 0),(0,0,0),(255,255,255)]
         self.paintColor = self.paintColors[-2]
+        self.size=3
         def brushPaint(x, y):
             if self.editMode:
-                cv2.circle(self.editFrame, (x, y), 3, self.paintColor, -1)
+                cv2.circle(self.editFrame, (x, y), self.size, self.paintColor, -1)
                 #You should imshow when you edit something
                 cv2.imshow(self.inputWindowName, self.editFrame)
+        def changeColor(val):
+            b = cv2.getTrackbarPos("B", self.inputWindowName)
+            g = cv2.getTrackbarPos("G", self.inputWindowName)
+            r = cv2.getTrackbarPos("R", self.inputWindowName)
+            s = cv2.getTrackbarPos("S", self.inputWindowName)
+            self.paintColor=(b,g,r)
+            self.size = s
+
+       
+        
                 
         # CVMouseEventクラスによるドラッグ描画関数の登録
         mouse_event = CVMouseEvent(drag_func=brushPaint)
         mouse_event.setCallBack(self.inputWindowName)
-
+        cv2.createTrackbar("R", self.inputWindowName, 0, 255, changeColor)
+        cv2.createTrackbar("G", self.inputWindowName, 0, 255, changeColor)
+        cv2.createTrackbar("B", self.inputWindowName, 0, 255, changeColor)
+        cv2.createTrackbar("S", self.inputWindowName, 3, 20, changeColor)
         self.editMode = False
         self.exit = False
         
         self.useHighRes = True
         #Weight to delete noise
-        self.ganWeight = 0.5
+        self.ganWeight = 0.7
 
     def processNotEdit(self):
         ret, self.captureFrame = self.cap.read()
         self.annotatedFrame = self.captureFrame.copy()
         if ret == False:
             raise "Capture Failed"
-
+        
         self.extractRect = self.fe.detectFace(self.captureFrame)
 
         if self.extractRect is not None:
@@ -116,20 +130,24 @@ class WebCamera:
                     extracted = self.fe.extractFaceFromRect(self.editFrame,
                                                             self.extractRect)
                 else:
-                    extracted = self.fe.extractFaceFromRect(self.captureFrame,
-                                                            self.extractRect)
+                    extracted = self.fe.extractFaceFromRect(self.captureFrame,self.extractRect)
                     self.extractedFrame = self.fe.extractFaceFromRect(self.captureFrame,
                                                                       self.extractRect,
                                                                       resize=False)
-
-                cv2.imshow('Extracted', extracted)
+         
+                try:
+                    cv2.imshow('Extracted', extracted)
+                    if self.ganWrapper:
+                        #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
+                        output=self.pipeline(extracted)
+                        cv2.imshow('Output', output)
+                except:
+                    print("cant show")
                 #if not os.path.exists("tempdir"):
-                    #os.makedirs("tempdir")
+                #os.makedirs("tempdir")
                 #cv2.imwrite(os.path.join("tempdir", 'tmp.png'), extracted)
-                if self.ganWrapper:
-                    #autoencoded = ganWrapper.autoencode(extracted, "tempdir")
-                    output=self.pipeline(extracted)
-                    cv2.imshow('Output', output)
+                
+                   
 
             self.processKeys()
             if self.exit:
@@ -144,9 +162,8 @@ class WebCamera:
         r = self.extractRect
         origShape = self.modifiedCaptureFrame[r[1]:r[1] + r[3], r[0]:r[0] + r[2]].shape
         result = self.ganWrapper.autoencode(img)
-        result = cv2.resize(result, (origShape[0], origShape[1]), interpolation = cv2.INTER_CUBIC)
+        result = cv2.resize(result, (origShape[1], origShape[0]),interpolation = cv2.INTER_CUBIC)
         result = np.asarray(result).astype('uint8')
-
         if not self.editMode:
             self.originalOutput = result
             # difference between autoencoder output and original face

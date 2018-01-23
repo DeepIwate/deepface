@@ -20,7 +20,13 @@ class FaceExtractor:
         #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         #facerect = self.cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5,minSize=(10, 10))
         dst = None
+        
         if len(facerect) > 0:
+            #add
+            facerect[0][0]=facerect[0][0]-int(facerect[0][2]*0.1)
+            facerect[0][1]=facerect[0][1]-int(facerect[0][3]*0.4)
+            facerect[0][2]=int(facerect[0][2]*1.2)
+            facerect[0][3]=int(facerect[0][3]*1.5)
             return facerect[0]
 
     def extractFace(self, img):
@@ -32,12 +38,16 @@ class FaceExtractor:
             return
 
         dst = img[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
-        if dst is not None:
-            if resize:
-                # resize all images to 128x128 size
+
+        #dst = img[rect[1]-int(rect[3]*0.3):rect[1] + int(rect[3]*1.1), rect[0]-int(rect[2]*0.1):rect[0] + int(rect[2]*1.1)]
+
+        if resize:
+            try:
                 return cv2.resize(dst, (128, 128))
-            else:
-                return dst
+            except:
+                print("resize error")
+        else:
+            return dst
 
     def extractAllFaces(self):
         # Data folders

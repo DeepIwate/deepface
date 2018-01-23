@@ -17,7 +17,7 @@ class GANWrapper:
         prepare_dirs_and_logger(config)
 
         config.data_path = "../data/capture"
-        config.model_dir = "logs/celebA_trained_1025_202802"
+        config.model_dir = "logs/celebA_hair_0120_021853"
         config.is_train = False
         data_path = config.data_path
         config.batch_size = 1
@@ -32,6 +32,7 @@ class GANWrapper:
         if imgPath is None or self.trainer.sess is None:
             #real1_batch = trainer.get_image_from_loader()
             img = cv2.resize(img, (64, 64), interpolation = cv2.INTER_CUBIC)
+            
             img = np.asarray(img).astype('float')
             img = np.expand_dims(img, axis=0)
             #img = img/255.0
